@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工時月曆</title>
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 16px;
+  background: #f5f5f5;
+}
+
+h2 {
+  text-align: center;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+input, select {
+  padding: 8px;
+  font-size: 16px;
+}
+
+.summary {
+  text-align: center;
+  margin: 10px 0;
+  font-size: 18px;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.day {
+  background: white;
+  padding: 6px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.day input {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📆 上班時數月曆</h2>
+
+<div class="top">
+  <select id="monthSelect"></select>
+  <input id="hourlyWage" type="number" step="0.1" value="200" placeholder="時薪">
+</div>
+
+<div class="summary">
+  總時數：<span id="totalHours">0</span> 小時<br>
+  薪水：$<span id="salary">0</span>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<script>
+const monthSelect = document.getElementById("monthSelect");
+const calendar = document.getElementById("calendar");
+const totalHoursEl = document.getElementById("totalHours");
+const salaryEl = document.getElementById("salary");
+const hourlyWageEl = document.getElementById("hourlyWage");
+
+const now = new Date();
+const year = now.getFullYear();
+
+// 建立月份選單
+for (let m = 0; m < 12; m++) {
+  const option = document.createElement("option");
+  option.value = m;
+  option.text = `${m + 1} 月`;
+  if (m === now.getMonth()) option.selected = true;
+  monthSelect.appendChild(option);
+}
+
+function getKey(month) {
+  return `work_${year}_${month}`;
+}
+
+function renderCalendar() {
+  calendar.innerHTML = "";
+  const month = monthSelect.value;
+  const days = new Date(year, Number(month) + 1, 0).getDate();
+  const data = JSON.parse(localStorage.getItem(getKey(month))) || {};
+
+  let total = 0;
+
+  for (let d = 1; d <= days; d++) {
+    const div = document.createElement("div");
+    div.className = "day";
+
+    const label = document.createElement("div");
+    label.textContent = d;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.1";
+    input.value = data[d] || "";
+
+    input.oninput = () => {
+      data[d] = Number(input.value) || 0;
+      localStorage.setItem(getKey(month), JSON.stringify(data));
+      calculate();
+    };
+
+    div.appendChild(label);
+    div.appendChild(input);
+    calendar.appendChild(div);
+
+    total += Number(input.value) || 0;
+  }
+
+  calculate();
+}
+
+function calculate() {
+  const month = monthSelect.value;
+  const data = JSON.parse(localStorage.getItem(getKey(month))) || {};
+  let total = 0;
+
+  Object.values(data).forEach(v => total += Number(v) || 0);
+
+  totalHoursEl.textContent = total;
+  salaryEl.textContent = Math.round(total * Number(hourlyWageEl.value || 0));
+}
+
+monthSelect.onchange = renderCalendar;
+hourlyWageEl.oninput = calculate;
+
+renderCalendar();
+</script>
+
+</body>
+</html>
