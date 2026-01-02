@@ -90,7 +90,7 @@ h1 {
 
 <div class="summary">
   時薪：
-  <input id="hourly" type="number" step="0.1" value="2.5">
+  <input id="hourly" type="number" step="0.01" value="2.5">
   <p>總時數：<span id="totalHours">0</span> 小時</p>
   <p>薪水：$<span id="salary">0</span></p>
 </div>
@@ -164,7 +164,7 @@ function loadMonth() {
 
     const input = document.createElement("input");
     input.type = "number";
-    input.step = "0.1";
+    input.step = "0.01";
     input.value = data[day] || "";
 
     input.addEventListener("input", () => {
