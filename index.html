@@ -8,31 +8,34 @@
 <style>
 body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f5f5f5;
   margin: 0;
   padding: 16px;
-  background: #f5f5f5;
 }
 
-h2 {
+h1 {
   text-align: center;
 }
 
-.top {
+.controls {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-input, select {
+.controls select,
+.controls input {
+  flex: 1;
   padding: 8px;
   font-size: 16px;
 }
 
 .summary {
-  text-align: center;
-  margin: 10px 0;
-  font-size: 18px;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 .calendar {
@@ -43,109 +46,149 @@ input, select {
 
 .day {
   background: white;
-  padding: 6px;
   border-radius: 6px;
-  text-align: center;
+  padding: 6px;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.day header {
+  font-weight: bold;
 }
 
 .day input {
+  margin-top: auto;
   width: 100%;
-  margin-top: 4px;
+  box-sizing: border-box;
   font-size: 14px;
+}
+.week {
+  text-align: center;
+  font-weight: bold;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📆 上班時數月曆</h2>
+<h1>工時月曆</h1>
 
-<div class="top">
+<div class="controls">
+  <select id="yearSelect"></select>
   <select id="monthSelect"></select>
-  <input id="hourlyWage" type="number" step="0.1" value="200" placeholder="時薪">
 </div>
 
 <div class="summary">
-  總時數：<span id="totalHours">0</span> 小時<br>
-  薪水：$<span id="salary">0</span>
+  時薪：
+  <input id="hourly" type="number" step="0.1" value="2.5">
+  <p>總時數：<span id="totalHours">0</span> 小時</p>
+  <p>薪水：$<span id="salary">0</span></p>
 </div>
 
 <div class="calendar" id="calendar"></div>
 
 <script>
+const yearSelect = document.getElementById("yearSelect");
 const monthSelect = document.getElementById("monthSelect");
 const calendar = document.getElementById("calendar");
 const totalHoursEl = document.getElementById("totalHours");
 const salaryEl = document.getElementById("salary");
-const hourlyWageEl = document.getElementById("hourlyWage");
+const hourlyInput = document.getElementById("hourly");
 
 const now = new Date();
-const year = now.getFullYear();
+const currentYear = now.getFullYear();
+const currentMonth = now.getMonth();
 
-// 建立月份選單
+// 年份選項（前後各 2 年）
+for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+  const opt = document.createElement("option");
+  opt.value = y;
+  opt.textContent = y + " 年";
+  if (y === currentYear) opt.selected = true;
+  yearSelect.appendChild(opt);
+}
+
+// 月份選項
 for (let m = 0; m < 12; m++) {
-  const option = document.createElement("option");
-  option.value = m;
-  option.text = `${m + 1} 月`;
-  if (m === now.getMonth()) option.selected = true;
-  monthSelect.appendChild(option);
+  const opt = document.createElement("option");
+  opt.value = m;
+  opt.textContent = (m + 1) + " 月";
+  if (m === currentMonth) opt.selected = true;
+  monthSelect.appendChild(opt);
 }
 
-function getKey(month) {
-  return `work_${year}_${month}`;
+function storageKey() {
+  return `work-${yearSelect.value}-${monthSelect.value}`;
 }
 
-function renderCalendar() {
+function loadMonth() {
   calendar.innerHTML = "";
-  const month = monthSelect.value;
-  const days = new Date(year, Number(month) + 1, 0).getDate();
-  const data = JSON.parse(localStorage.getItem(getKey(month))) || {};
 
-  let total = 0;
+  const year = parseInt(yearSelect.value);
+  const month = parseInt(monthSelect.value);
 
-  for (let d = 1; d <= days; d++) {
-    const div = document.createElement("div");
-    div.className = "day";
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const label = document.createElement("div");
-    label.textContent = d;
+  const data = JSON.parse(localStorage.getItem(storageKey())) || {};
+
+  const weekNames = ["日","一","二","三","四","五","六"];
+  weekNames.forEach(w => {
+    const d = document.createElement("div");
+    d.className = "week";
+    d.textContent = w;
+    calendar.appendChild(d);
+  });
+
+  for (let i = 0; i < firstDay; i++) {
+    calendar.appendChild(document.createElement("div"));
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const cell = document.createElement("div");
+    cell.className = "day";
+
+    const header = document.createElement("header");
+    header.textContent = day;
+    cell.appendChild(header);
 
     const input = document.createElement("input");
     input.type = "number";
     input.step = "0.1";
-    input.value = data[d] || "";
+    input.value = data[day] || "";
 
-    input.oninput = () => {
-      data[d] = Number(input.value) || 0;
-      localStorage.setItem(getKey(month), JSON.stringify(data));
+    input.addEventListener("input", () => {
+      data[day] = input.value;
+      localStorage.setItem(storageKey(), JSON.stringify(data));
       calculate();
-    };
+    });
 
-    div.appendChild(label);
-    div.appendChild(input);
-    calendar.appendChild(div);
-
-    total += Number(input.value) || 0;
+    cell.appendChild(input);
+    calendar.appendChild(cell);
   }
 
   calculate();
 }
 
 function calculate() {
-  const month = monthSelect.value;
-  const data = JSON.parse(localStorage.getItem(getKey(month))) || {};
+  const data = JSON.parse(localStorage.getItem(storageKey())) || {};
   let total = 0;
 
-  Object.values(data).forEach(v => total += Number(v) || 0);
+  Object.values(data).forEach(v => {
+    total += parseFloat(v) || 0;
+  });
 
-  totalHoursEl.textContent = total;
-  salaryEl.textContent = Math.round(total * Number(hourlyWageEl.value || 0));
+  totalHoursEl.textContent = total.toFixed(1);
+  salaryEl.textContent = (total * parseFloat(hourlyInput.value || 0)).toFixed(0);
 }
 
-monthSelect.onchange = renderCalendar;
-hourlyWageEl.oninput = calculate;
+yearSelect.addEventListener("change", loadMonth);
+monthSelect.addEventListener("change", loadMonth);
+hourlyInput.addEventListener("input", calculate);
 
-renderCalendar();
+loadMonth();
 </script>
 
 </body>
