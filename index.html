@@ -188,7 +188,7 @@ function calculate() {
     total += parseFloat(v) || 0;
   });
 
-  totalHoursEl.textContent = total.toFixed(1);
+  totalHoursEl.textContent = total.toFixed(2);
   salaryEl.textContent = (total * parseFloat(hourlyInput.value || 0)).toFixed(0);
 }
 
