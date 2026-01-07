@@ -19,13 +19,13 @@ h1 {
 
 .controls {
   display: flex;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 12px;
 }
 
 .controls select,
-.controls input {
+.controls input,
+.controls button {
   flex: 1;
   padding: 8px;
   font-size: 16px;
@@ -42,6 +42,11 @@ h1 {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
+}
+
+.week {
+  text-align: center;
+  font-weight: bold;
 }
 
 .day {
@@ -61,12 +66,7 @@ h1 {
 .day input {
   margin-top: auto;
   width: 100%;
-  box-sizing: border-box;
   font-size: 14px;
-}
-.week {
-  text-align: center;
-  font-weight: bold;
 }
 </style>
 </head>
@@ -76,30 +76,21 @@ h1 {
 <h1>工時月曆</h1>
 
 <div class="controls">
-  <label>
-    年份
-    <select id="yearSelect"></select>
-  </label>
-
-  <label>
-    月份
-    <select id="monthSelect"></select>
-  </label>
+  <select id="ymSelect"></select>
+  <button onclick="exportReadonly()">匯出唯讀</button>
 </div>
-
 
 <div class="summary">
   時薪：
   <input id="hourly" type="number" step="0.01" value="190">
-  <p>總時數：<span id="totalHours">0</span> 小時</p>
+  <p>總時數：<span id="totalHours">0.00</span> 小時</p>
   <p>薪水：$<span id="salary">0</span></p>
 </div>
 
 <div class="calendar" id="calendar"></div>
 
 <script>
-const yearSelect = document.getElementById("yearSelect");
-const monthSelect = document.getElementById("monthSelect");
+const ymSelect = document.getElementById("ymSelect");
 const calendar = document.getElementById("calendar");
 const totalHoursEl = document.getElementById("totalHours");
 const salaryEl = document.getElementById("salary");
@@ -109,37 +100,27 @@ const now = new Date();
 const currentYear = now.getFullYear();
 const currentMonth = now.getMonth();
 
-// 年份選項（前後各 2 年）
+// 建立 年-月 選單（前後各 2 年）
 for (let y = currentYear - 2; y <= currentYear + 2; y++) {
-  const opt = document.createElement("option");
-  opt.value = y;
-  opt.textContent = y + " 年";
-  if (y === currentYear) opt.selected = true;
-  yearSelect.appendChild(opt);
-}
-
-// 月份選項
-for (let m = 0; m < 12; m++) {
-  const opt = document.createElement("option");
-  opt.value = m;
-  opt.textContent = (m + 1) + " 月";
-  if (m === currentMonth) opt.selected = true;
-  monthSelect.appendChild(opt);
+  for (let m = 0; m < 12; m++) {
+    const opt = document.createElement("option");
+    opt.value = `${y}-${m}`;
+    opt.textContent = `${y} 年 ${m + 1} 月`;
+    if (y === currentYear && m === currentMonth) opt.selected = true;
+    ymSelect.appendChild(opt);
+  }
 }
 
 function storageKey() {
-  return `work-${yearSelect.value}-${monthSelect.value}`;
+  return `work-${ymSelect.value}`;
 }
 
 function loadMonth() {
   calendar.innerHTML = "";
 
-  const year = parseInt(yearSelect.value);
-  const month = parseInt(monthSelect.value);
-
+  const [year, month] = ymSelect.value.split("-").map(Number);
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-
   const data = JSON.parse(localStorage.getItem(storageKey())) || {};
 
   const weekNames = ["日","一","二","三","四","五","六"];
@@ -189,11 +170,29 @@ function calculate() {
   });
 
   totalHoursEl.textContent = total.toFixed(2);
-  salaryEl.textContent = (total * parseFloat(hourlyInput.value || 0)).toFixed(0);
+  salaryEl.textContent = (total * (parseFloat(hourlyInput.value) || 0)).toFixed(0);
 }
 
-yearSelect.addEventListener("change", loadMonth);
-monthSelect.addEventListener("change", loadMonth);
+function exportReadonly() {
+  const data = localStorage.getItem(storageKey()) || "{}";
+  const html = `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<meta charset="UTF-8">
+<title>工時唯讀</title>
+<h2>${ymSelect.options[ymSelect.selectedIndex].text}</h2>
+<pre>${JSON.stringify(JSON.parse(data), null, 2)}</pre>
+<p>總時數：${totalHoursEl.textContent}</p>
+<p>薪水：$${salaryEl.textContent}</p>
+`;
+  const blob = new Blob([html], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "work_readonly.html";
+  a.click();
+}
+
+ymSelect.addEventListener("change", loadMonth);
 hourlyInput.addEventListener("input", calculate);
 
 loadMonth();
