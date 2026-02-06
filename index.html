@@ -31,6 +31,12 @@ h1 {
   font-size: 16px;
 }
 
+.summary {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
 
 .calendar {
   display: grid;
@@ -63,7 +69,6 @@ h1 {
   font-size: 14px;
   padding: 4px;
 }
-
 </style>
 </head>
 
@@ -78,14 +83,17 @@ h1 {
 
 <div class="summary" id="captureArea">
   時薪：
-  <input id="hourly" type="number" step="0.01" value="190">
+  <input id="hourly"
+         type="text"
+         inputmode="decimal"
+         pattern="[0-9]*[.]?[0-9]*"
+         value="190">
   <p>總時數：<span id="totalHours">0.00</span> 小時</p>
   <p>薪水：$<span id="salary">0</span></p>
 </div>
 
 <div class="calendar" id="calendar"></div>
 
-<!-- html2canvas -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
@@ -99,7 +107,6 @@ const now = new Date();
 const baseYear = now.getFullYear();
 const baseMonth = now.getMonth();
 
-// 建立年月選單（前後各 12 個月）
 for (let i = -12; i <= 12; i++) {
   const d = new Date(baseYear, baseMonth + i, 1);
   const opt = document.createElement("option");
@@ -147,12 +154,19 @@ function loadMonth() {
     cell.appendChild(h);
 
     const input = document.createElement("input");
-    input.type = "number";
-    input.step = "0.01";
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.pattern = "[0-9]*[.]?[0-9]*";
     input.value = data[day] || "";
 
     input.addEventListener("input", () => {
-      data[day] = input.value;
+      let v = input.value.replace(/[^0-9.]/g, "");
+      if (v.includes(".")) {
+        const [a, b] = v.split(".");
+        v = a + "." + (b || "").slice(0, 2);
+      }
+      input.value = v;
+      data[day] = v;
       localStorage.setItem(storageKey(), JSON.stringify(data));
       calculate();
     });
@@ -184,8 +198,17 @@ function exportImage() {
   });
 }
 
+hourlyInput.addEventListener("input", () => {
+  let v = hourlyInput.value.replace(/[^0-9.]/g, "");
+  if (v.includes(".")) {
+    const [a, b] = v.split(".");
+    v = a + "." + (b || "").slice(0, 2);
+  }
+  hourlyInput.value = v;
+  calculate();
+});
+
 yearMonthSelect.addEventListener("change", loadMonth);
-hourlyInput.addEventListener("input", calculate);
 
 loadMonth();
 </script>
